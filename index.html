@@ -2,62 +2,100 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>配信オーバーレイ画面</title>
+  <title>配信オーバーレイ（リスト型）</title>
   <style>
     /* 画面全体のデザイン */
     body { font-family: sans-serif; background: #000; color: #fff; padding: 20px; }
     
     /* === 1. 配信に映す部分のデザイン === */
     #overlay-display {
-      /* OBSで映すエリアとして分かりやすく囲う（本番では border を消してもOK） */
       border: 2px dashed #555;
       padding: 20px;
       min-height: 200px;
       margin-bottom: 50px;
     }
-    #overlay-text { font-size: 60px; font-weight: bold; color: #00ff00; text-shadow: 2px 2px 4px #000; margin-bottom: 20px; }
-    #overlay-image { max-width: 400px; display: none; } /* 最初は画像を非表示にしておく */
+    .display-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      gap: 15px;
+    }
+    .display-row img {
+      height: 60px; /* 配信画面での画像の高さ */
+      border-radius: 8px;
+    }
+    .display-row span {
+      font-size: 40px;
+      font-weight: bold;
+      color: #00ff00;
+      text-shadow: 2px 2px 4px #000;
+    }
 
     /* === 2. 操作パネルのデザイン === */
-    #control-panel { background: #333; padding: 20px; border-radius: 8px; display: inline-block; }
-    .control-group { margin-bottom: 20px; }
-    input[type="text"] { font-size: 20px; padding: 8px; width: 300px; }
-    select { font-size: 20px; padding: 8px; width: 320px; }
-    button { font-size: 20px; padding: 8px 16px; cursor: pointer; }
+    #control-panel { background: #333; padding: 20px; border-radius: 8px; max-width: 600px; }
+    
+    /* 入力フォーム部分 */
+    .form-group { background: #444; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    .form-group input, .form-group select { font-size: 16px; padding: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+    .form-group button { font-size: 16px; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+    #saveBtn, #cancelBtn { display: none; } /* 初期状態では非表示 */
+
+    /* リスト一覧部分 */
+    .control-row {
+      display: flex;
+      align-items: center;
+      background: #222;
+      padding: 10px;
+      margin-bottom: 5px;
+      border-radius: 4px;
+      gap: 10px;
+    }
+    .control-row img { height: 40px; }
+    .control-row .text-info { flex-grow: 1; font-size: 16px; }
+    .control-row button { padding: 5px 10px; cursor: pointer; }
+    .btn-edit { background: #ffc107; border: none; border-radius: 4px; }
+    .btn-delete { background: #dc3545; color: white; border: none; border-radius: 4px; }
   </style>
 </head>
 <body>
 
   <div id="overlay-display">
-    <div id="overlay-text">待機中...</div>
-    <img id="overlay-image" src="" alt="配信画像">
+    <div id="display-list">
+      </div>
   </div>
 
   <div id="control-panel">
-    <h3>配信用 操作パネル</h3>
+    <h3>📝 テロップ操作パネル</h3>
     
-    <div class="control-group">
-      <label>📝 テキスト変更:</label><br>
+    <div class="form-group">
+      <label>テキスト:</label>
       <input type="text" id="inputText" placeholder="表示したい文字を入力">
-      <button id="updateTextBtn">文字を更新</button>
-    </div>
-
-    <div class="control-group">
-      <label>🖼️ 画像変更:</label><br>
+      
+      <label>画像:</label>
       <select id="imageSelect">
-        <option value="">（画像を表示しない）</option>
+        <option value="">（画像なし）</option>
         <option value="SSS+.png">SSS+</option>
         <option value="SSS.png">SSS</option>
         <option value="SS+.png">SS+</option>
         <option value="SS.png">SS</option>
       </select>
-      <button id="updateImageBtn">画像を更新</button>
+
+      <div style="margin-top: 10px;">
+        <button id="addBtn" style="background:#28a745; color:white; border:none; border-radius:4px;">＋ 新しく追加</button>
+        <button id="saveBtn" style="background:#007bff; color:white; border:none; border-radius:4px;">💾 上書き保存</button>
+        <button id="cancelBtn" style="background:#6c757d; color:white; border:none; border-radius:4px;">キャンセル</button>
+      </div>
     </div>
+
+    <h4>現在の表示リスト</h4>
+    <div id="control-list">
+      </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    // 必要な機能（push, remove, update）を追加で読み込みます
+    import { getDatabase, ref, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     // ▼▼▼ ここを自分の設定に書き換える ▼▼▼
     // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -75,49 +113,103 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    
-    // データベースの保存場所を2つ用意する
-    const textRef = ref(db, 'live/message');
-    const imageRef = ref(db, 'live/imageUrl'); // 画像URL用の保存場所を追加
+    const listRef = ref(db, 'live/items'); // 保存場所を「リスト用」に変更
+
+    let currentEditId = null; // 現在編集中のアイテムのIDを記憶する変数
 
     // ------------------------------------------
-    // 【受信】OBS（表示）側の処理
+    // 【受信・表示】データベースが更新されたら画面を描き直す
     // ------------------------------------------
-    // テキストが変更されたら
-    onValue(textRef, (snapshot) => {
-      document.getElementById('overlay-text').innerText = snapshot.val() || "";
-    });
-
-    // 画像URLが変更されたら
-    onValue(imageRef, (snapshot) => {
-      const url = snapshot.val();
-      const imgTag = document.getElementById('overlay-image');
+    onValue(listRef, (snapshot) => {
+      const data = snapshot.val();
+      const displayList = document.getElementById('display-list');
+      const controlList = document.getElementById('control-list');
       
-      if (url) {
-        // URLがあれば画像を表示する
-        imgTag.src = url;
-        imgTag.style.display = "block";
-      } else {
-        // URLが空なら（「画像を表示しない」を選んだら）画像を隠す
-        imgTag.src = "";
-        imgTag.style.display = "none";
+      displayList.innerHTML = '';
+      controlList.innerHTML = '';
+
+      if (!data) return; // データが空なら何もしない
+
+      // データを1件ずつ処理
+      Object.keys(data).forEach(key => {
+        const item = data[key];
+
+        // --- 1. 配信画面用のHTMLを作成 ---
+        const dispDiv = document.createElement('div');
+        dispDiv.className = 'display-row';
+        dispDiv.innerHTML = `
+          ${item.imageUrl ? `<img src="${item.imageUrl}">` : ''}
+          <span>${item.text}</span>
+        `;
+        displayList.appendChild(dispDiv);
+
+        // --- 2. 操作パネル用のHTMLを作成 ---
+        const ctrlDiv = document.createElement('div');
+        ctrlDiv.className = 'control-row';
+        ctrlDiv.innerHTML = `
+          ${item.imageUrl ? `<img src="${item.imageUrl}">` : '<div style="width:40px;"></div>'}
+          <div class="text-info">${item.text}</div>
+          <button class="btn-edit" onclick="startEdit('${key}', '${item.text}', '${item.imageUrl}')">編集</button>
+          <button class="btn-delete" onclick="deleteItem('${key}')">削除</button>
+        `;
+        controlList.appendChild(ctrlDiv);
+      });
+    });
+
+    // ------------------------------------------
+    // 【操作機能】追加・削除・編集
+    // ------------------------------------------
+    
+    // 【追加】新しくデータを入れる (push)
+    document.getElementById('addBtn').addEventListener('click', () => {
+      const textVal = document.getElementById('inputText').value;
+      const imgVal = document.getElementById('imageSelect').value;
+      if (!textVal && !imgVal) return; // 空っぽなら追加しない
+
+      push(listRef, { text: textVal, imageUrl: imgVal });
+      clearForm();
+    });
+
+    // 【削除】データを消す (remove) ※HTML内のonclickから呼ばれる
+    window.deleteItem = (id) => {
+      if(confirm('この行を削除しますか？')) {
+        remove(ref(db, `live/items/${id}`));
       }
+    };
+
+    // 【編集準備】フォームに現在のデータを入れてモードを切り替える
+    window.startEdit = (id, currentText, currentImage) => {
+      currentEditId = id;
+      document.getElementById('inputText').value = currentText;
+      document.getElementById('imageSelect').value = currentImage;
+      
+      // ボタンの表示を「追加」から「保存」に切り替え
+      document.getElementById('addBtn').style.display = 'none';
+      document.getElementById('saveBtn').style.display = 'inline-block';
+      document.getElementById('cancelBtn').style.display = 'inline-block';
+    };
+
+    // 【編集保存】変更したデータを上書きする (update)
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      const textVal = document.getElementById('inputText').value;
+      const imgVal = document.getElementById('imageSelect').value;
+
+      update(ref(db, `live/items/${currentEditId}`), { text: textVal, imageUrl: imgVal });
+      clearForm();
     });
 
-    // ------------------------------------------
-    // 【送信】スマホ（操作）側の処理
-    // ------------------------------------------
-    // 「文字を更新」ボタン
-    document.getElementById('updateTextBtn').addEventListener('click', () => {
-      const newText = document.getElementById('inputText').value;
-      set(textRef, newText);
-    });
+    // 【キャンセル】編集をやめる
+    document.getElementById('cancelBtn').addEventListener('click', clearForm);
 
-    // 「画像を更新」ボタン
-    document.getElementById('updateImageBtn').addEventListener('click', () => {
-      const newImageUrl = document.getElementById('imageSelect').value;
-      set(imageRef, newImageUrl);
-    });
+    // フォームをリセットして初期状態に戻す関数
+    function clearForm() {
+      currentEditId = null;
+      document.getElementById('inputText').value = '';
+      document.getElementById('imageSelect').value = '';
+      document.getElementById('addBtn').style.display = 'inline-block';
+      document.getElementById('saveBtn').style.display = 'none';
+      document.getElementById('cancelBtn').style.display = 'none';
+    }
   </script>
 
 </body>
