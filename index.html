@@ -2,26 +2,56 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>配信テロップ画面</title>
+  <title>配信オーバーレイ画面</title>
   <style>
     /* 画面全体のデザイン */
-    body { font-family: sans-serif; background: #fff; color: #000; padding: 20px; }
-    /* 配信に映す文字のデザイン */
-    #overlay-text { font-size: 60px; font-weight: bold; color: #111111; text-shadow: 2px 2px 4px #444; }
-    /* 操作パネルのデザイン */
-    #control-panel { background: #ccc; padding: 20px; margin-top: 80px; border-radius: 8px; display: inline-block; }
-    input { font-size: 20px; padding: 8px; width: 300px; }
+    body { font-family: sans-serif; background: #000; color: #fff; padding: 20px; }
+    
+    /* === 1. 配信に映す部分のデザイン === */
+    #overlay-display {
+      /* OBSで映すエリアとして分かりやすく囲う（本番では border を消してもOK） */
+      border: 2px dashed #555;
+      padding: 20px;
+      min-height: 200px;
+      margin-bottom: 50px;
+    }
+    #overlay-text { font-size: 60px; font-weight: bold; color: #00ff00; text-shadow: 2px 2px 4px #000; margin-bottom: 20px; }
+    #overlay-image { max-width: 400px; display: none; } /* 最初は画像を非表示にしておく */
+
+    /* === 2. 操作パネルのデザイン === */
+    #control-panel { background: #333; padding: 20px; border-radius: 8px; display: inline-block; }
+    .control-group { margin-bottom: 20px; }
+    input[type="text"] { font-size: 20px; padding: 8px; width: 300px; }
+    select { font-size: 20px; padding: 8px; width: 320px; }
     button { font-size: 20px; padding: 8px 16px; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <div id="overlay-text">待機中...</div>
+  <div id="overlay-display">
+    <div id="overlay-text">待機中...</div>
+    <img id="overlay-image" src="" alt="配信画像">
+  </div>
 
   <div id="control-panel">
-    <h3>テロップ操作パネル</h3>
-    <input type="text" id="inputText" placeholder="表示したい文字を入力">
-    <button id="updateBtn">更新</button>
+    <h3>配信用 操作パネル</h3>
+    
+    <div class="control-group">
+      <label>📝 テキスト変更:</label><br>
+      <input type="text" id="inputText" placeholder="表示したい文字を入力">
+      <button id="updateTextBtn">文字を更新</button>
+    </div>
+
+    <div class="control-group">
+      <label>🖼️ 画像変更:</label><br>
+      <select id="imageSelect">
+        <option value="">（画像を表示しない）</option>
+        <option value="https://dummyimage.com/600x400/ff0000/ffffff&text=Image+A">ダミー画像 A (赤)</option>
+        <option value="https://dummyimage.com/600x400/0000ff/ffffff&text=Image+B">ダミー画像 B (青)</option>
+        <option value="https://dummyimage.com/600x400/00ff00/000000&text=Image+C">ダミー画像 C (緑)</option>
+      </select>
+      <button id="updateImageBtn">画像を更新</button>
+    </div>
   </div>
 
   <script type="module">
@@ -29,6 +59,7 @@
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     // ▼▼▼ ここを自分の設定に書き換える ▼▼▼
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
     const firebaseConfig = {
       apiKey: "AIzaSyCm7JSHoVaJQRz4UaDTFeRoeVlAkOYpql0",
       authDomain: "tasklist-live.firebaseapp.com",
@@ -43,17 +74,48 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+    
+    // データベースの保存場所を2つ用意する
     const textRef = ref(db, 'live/message');
+    const imageRef = ref(db, 'live/imageUrl'); // 画像URL用の保存場所を追加
 
-    // 【受信】データベースが変わったら文字を書き換える
+    // ------------------------------------------
+    // 【受信】OBS（表示）側の処理
+    // ------------------------------------------
+    // テキストが変更されたら
     onValue(textRef, (snapshot) => {
-      document.getElementById('overlay-text').innerText = snapshot.val() || "テキストなし";
+      document.getElementById('overlay-text').innerText = snapshot.val() || "";
     });
 
-    // 【送信】ボタンを押したら入力された文字をデータベースに送る
-    document.getElementById('updateBtn').addEventListener('click', () => {
+    // 画像URLが変更されたら
+    onValue(imageRef, (snapshot) => {
+      const url = snapshot.val();
+      const imgTag = document.getElementById('overlay-image');
+      
+      if (url) {
+        // URLがあれば画像を表示する
+        imgTag.src = url;
+        imgTag.style.display = "block";
+      } else {
+        // URLが空なら（「画像を表示しない」を選んだら）画像を隠す
+        imgTag.src = "";
+        imgTag.style.display = "none";
+      }
+    });
+
+    // ------------------------------------------
+    // 【送信】スマホ（操作）側の処理
+    // ------------------------------------------
+    // 「文字を更新」ボタン
+    document.getElementById('updateTextBtn').addEventListener('click', () => {
       const newText = document.getElementById('inputText').value;
       set(textRef, newText);
+    });
+
+    // 「画像を更新」ボタン
+    document.getElementById('updateImageBtn').addEventListener('click', () => {
+      const newImageUrl = document.getElementById('imageSelect').value;
+      set(imageRef, newImageUrl);
     });
   </script>
 
