@@ -58,10 +58,10 @@
       <label>画像を選択:</label>
       <div id="image-selector">
         <button type="button" class="img-btn selected" data-url="">画像なし</button>
-        <button type="button" class="img-btn" data-url="SSS+.png"><img src="SSS+.png" alt="SSS+"></button>
-        <button type="button" class="img-btn" data-url="SSS.png"><img src="SSS.png" alt="SSS"></button>
-        <button type="button" class="img-btn" data-url="SS+.png"><img src="SS+.png" alt="SS+"></button>
-        <button type="button" class="img-btn" data-url="SS+.png"><img src="SS.png" alt="SS"></button>
+        <button type="button" class="img-btn" data-url="SSS+.png">SSS+</button>
+        <button type="button" class="img-btn" data-url="SSS.png">SSS</button>
+        <button type="button" class="img-btn" data-url="SS+.png">SS+</button>
+        <button type="button" class="img-btn" data-url="SS+.png">SS</button>
       </div>
 
       <div>
@@ -80,12 +80,16 @@
     import { getDatabase, ref, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     // ▼▼▼ ここを自分の設定に書き換える ▼▼▼
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
     const firebaseConfig = {
-      apiKey: "AIzaSy...",
-      authDomain: "your-project.firebaseapp.com",
-      databaseURL: "https://your-project-default-rtdb.firebaseio.com",
-      projectId: "your-project",
-      // ...他も忘れずに
+      apiKey: "AIzaSyCm7JSHoVaJQRz4UaDTFeRoeVlAkOYpql0",
+      authDomain: "tasklist-live.firebaseapp.com",
+      databaseURL: "https://tasklist-live-default-rtdb.firebaseio.com",
+      projectId: "tasklist-live",
+      storageBucket: "tasklist-live.firebasestorage.app",
+      messagingSenderId: "687728987860",
+      appId: "1:687728987860:web:8b19ac1aea6c7f2d3bb541",
+      measurementId: "G-53D8MHL743"
     };
     // ▲▲▲ ここまで ▲▲▲
 
