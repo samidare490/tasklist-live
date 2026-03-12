@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>配信オーバーレイ（画像ボタン＆CSV対応版）</title>
+  <title>配信オーバーレイ（文字色切り替え機能付き）</title>
   <style>
     body { font-family: sans-serif; background: #000; color: #fff; padding: 20px; }
     
@@ -10,14 +10,22 @@
     #overlay-display { border: 2px dashed #555; padding: 20px; min-height: 200px; margin-bottom: 50px; }
     .display-row { display: flex; align-items: center; margin-bottom: 15px; gap: 15px; }
     .display-row img { height: 60px; border-radius: 8px; }
+    
+    /* ★通常の文字色（緑） */
     .display-row span { font-size: 40px; font-weight: bold; color: #00ff00; text-shadow: 2px 2px 4px #000; }
+    /* ★強調時の文字色（黄色） */
+    .display-row span.highlight { color: #ffeb3b; }
 
     /* === 操作パネル === */
     #control-panel { background: #333; padding: 20px; border-radius: 8px; max-width: 700px; }
     .form-group { background: #444; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-    .form-group input { font-size: 16px; padding: 8px; width: 100%; box-sizing: border-box; margin-bottom: 15px; }
+    .form-group input[type="text"] { font-size: 16px; padding: 8px; width: 100%; box-sizing: border-box; margin-bottom: 5px; }
     
-    /* === 画像選択ボタンのデザイン === */
+    /* ★チェックボックスのデザイン */
+    .checkbox-wrap { margin-bottom: 15px; font-size: 16px; cursor: pointer; display: inline-block; }
+    .checkbox-wrap input[type="checkbox"] { transform: scale(1.5); margin-right: 8px; cursor: pointer; }
+
+    /* === 画像選択ボタン === */
     #image-selector { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
     .img-btn {
       background: #555; border: 3px solid transparent; border-radius: 8px; 
@@ -26,7 +34,6 @@
       min-width: 80px; height: 60px; transition: 0.2s;
     }
     .img-btn img { max-height: 100%; border-radius: 4px; pointer-events: none; }
-    /* 選択されているボタンは枠線を緑にして目立たせる */
     .img-btn.selected { border-color: #00ff00; background: #222; }
 
     .form-group button { font-size: 16px; padding: 10px 20px; cursor: pointer; font-weight: bold; }
@@ -36,6 +43,8 @@
     .control-row { display: flex; align-items: center; background: #222; padding: 10px; margin-bottom: 5px; border-radius: 4px; gap: 10px; }
     .control-row img { height: 40px; }
     .control-row .text-info { flex-grow: 1; font-size: 16px; }
+    /* ★操作パネルのリスト一覧でも、強調色がわかるようにする */
+    .control-row .text-info.highlight { color: #ffeb3b; font-weight: bold; }
     .control-row button { padding: 5px 10px; cursor: pointer; }
     .btn-edit { background: #ffc107; border: none; border-radius: 4px; }
     .btn-delete { background: #dc3545; color: white; border: none; border-radius: 4px; }
@@ -55,6 +64,11 @@
       <input type="text" id="inputText" list="text-candidates" placeholder="表示したい文字を入力（または選択）">
       <datalist id="text-candidates"></datalist>
       
+      <label class="checkbox-wrap">
+        <input type="checkbox" id="colorCheck"> 別の色（強調色）にする
+      </label>
+      <br>
+
       <label>画像を選択:</label>
       <div id="image-selector">
         <button type="button" class="img-btn selected" data-url="">画像なし</button>
@@ -64,7 +78,7 @@
         <button type="button" class="img-btn" data-url="SS+.png">SS</button>
       </div>
 
-      <div>
+      <div style="margin-top: 10px;">
         <button id="addBtn" style="background:#28a745; color:white; border:none; border-radius:4px;">＋ 新しく追加</button>
         <button id="saveBtn" style="background:#007bff; color:white; border:none; border-radius:4px;">💾 上書き保存</button>
         <button id="cancelBtn" style="background:#6c757d; color:white; border:none; border-radius:4px;">キャンセル</button>
@@ -98,15 +112,13 @@
     const listRef = ref(db, 'live/items');
 
     let currentEditId = null; 
-    let currentSelectedImage = ""; // ★現在選択されている画像のURLを記憶する変数
+    let currentSelectedImage = ""; 
 
-    // ------------------------------------------
     // 【CSV読み込み機能】
-    // ------------------------------------------
     async function loadCandidatesFromCSV() {
       try {
         const response = await fetch('musiclist.csv');
-        if (!response.ok) return; // CSVが無くてもエラーで止めない
+        if (!response.ok) return; 
         const csvText = await response.text();
         const datalist = document.getElementById('text-candidates');
         datalist.innerHTML = '';
@@ -126,19 +138,12 @@
     }
     loadCandidatesFromCSV();
 
-    // ------------------------------------------
-    // ★【画像ボタン選択機能】
-    // ------------------------------------------
+    // 【画像ボタン選択機能】
     document.querySelectorAll('.img-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        // 全てのボタンから緑枠(selected)を外す
         document.querySelectorAll('.img-btn').forEach(b => b.classList.remove('selected'));
-        
-        // クリックされたボタンに緑枠をつける
         const clickedBtn = e.currentTarget;
         clickedBtn.classList.add('selected');
-        
-        // 選択された画像のURLを変数に保存する
         currentSelectedImage = clickedBtn.getAttribute('data-url');
       });
     });
@@ -158,12 +163,15 @@
 
       Object.keys(data).forEach(key => {
         const item = data[key];
+        
+        // ★データベースの isHighlight が true なら、'highlight' というクラス名をつける
+        const highlightClass = item.isHighlight ? 'highlight' : '';
 
-        // 配信画面用（テキスト → 画像の順）
+        // 配信画面用
         const dispDiv = document.createElement('div');
         dispDiv.className = 'display-row';
         dispDiv.innerHTML = `
-          <span>${item.text}</span>
+          <span class="${highlightClass}">${item.text}</span>
           ${item.imageUrl ? `<img src="${item.imageUrl}">` : ''}
         `;
         displayList.appendChild(dispDiv);
@@ -172,9 +180,9 @@
         const ctrlDiv = document.createElement('div');
         ctrlDiv.className = 'control-row';
         ctrlDiv.innerHTML = `
-          <div class="text-info">${item.text}</div>
+          <div class="text-info ${highlightClass}">${item.text}</div>
           ${item.imageUrl ? `<img src="${item.imageUrl}">` : '<div style="width:40px;"></div>'}
-          <button class="btn-edit" onclick="startEdit('${key}', '${item.text}', '${item.imageUrl}')">編集</button>
+          <button class="btn-edit" onclick="startEdit('${key}', '${item.text}', '${item.imageUrl}', ${item.isHighlight || false})">編集</button>
           <button class="btn-delete" onclick="deleteItem('${key}')">削除</button>
         `;
         controlList.appendChild(ctrlDiv);
@@ -188,10 +196,17 @@
     // 【追加】
     document.getElementById('addBtn').addEventListener('click', () => {
       const textVal = document.getElementById('inputText').value;
+      // ★チェックボックスの状態（trueかfalse）を取得
+      const isHighlightVal = document.getElementById('colorCheck').checked;
+      
       if (!textVal && !currentSelectedImage) return;
 
-      // 変数 currentSelectedImage に入っているURLを送信する
-      push(listRef, { text: textVal, imageUrl: currentSelectedImage });
+      // ★テキスト、画像URLと一緒に、色強調のON/OFFもデータベースに送信
+      push(listRef, { 
+        text: textVal, 
+        imageUrl: currentSelectedImage,
+        isHighlight: isHighlightVal 
+      });
       clearForm();
     });
 
@@ -202,17 +217,17 @@
       }
     };
 
-    // 【編集準備】★画像ボタンの選択状態も復元する
-    window.startEdit = (id, currentText, currentImage) => {
+    // 【編集準備】★引数に isHighlight を追加して状態を復元する
+    window.startEdit = (id, currentText, currentImage, currentIsHighlight) => {
       currentEditId = id;
       document.getElementById('inputText').value = currentText;
       
+      // ★チェックボックスの状態を復元
+      document.getElementById('colorCheck').checked = currentIsHighlight;
+      
       currentSelectedImage = currentImage || "";
       
-      // 一旦すべてのボタンの選択を解除
       document.querySelectorAll('.img-btn').forEach(b => b.classList.remove('selected'));
-      
-      // データと同じURLを持つボタンがあれば選択状態にする、無ければ「画像なし」を選択
       const targetBtn = document.querySelector(`.img-btn[data-url="${currentSelectedImage}"]`);
       if (targetBtn) {
         targetBtn.classList.add('selected');
@@ -228,19 +243,27 @@
     // 【編集保存】
     document.getElementById('saveBtn').addEventListener('click', () => {
       const textVal = document.getElementById('inputText').value;
-      update(ref(db, `live/items/${currentEditId}`), { text: textVal, imageUrl: currentSelectedImage });
+      const isHighlightVal = document.getElementById('colorCheck').checked; // ★再取得
+      
+      update(ref(db, `live/items/${currentEditId}`), { 
+        text: textVal, 
+        imageUrl: currentSelectedImage,
+        isHighlight: isHighlightVal // ★上書き
+      });
       clearForm();
     });
 
     // 【キャンセル】
     document.getElementById('cancelBtn').addEventListener('click', clearForm);
 
-    // ★フォームと画像選択状態をリセットする関数
+    // 【フォームのリセット】
     function clearForm() {
       currentEditId = null;
       document.getElementById('inputText').value = '';
       
-      // 画像選択を「画像なし」に戻す
+      // ★チェックボックスのチェックを外す
+      document.getElementById('colorCheck').checked = false;
+      
       currentSelectedImage = "";
       document.querySelectorAll('.img-btn').forEach(b => b.classList.remove('selected'));
       document.querySelector('.img-btn[data-url=""]').classList.add('selected');
