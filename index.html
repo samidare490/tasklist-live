@@ -2,54 +2,38 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>配信オーバーレイ（リスト型）</title>
+  <title>配信オーバーレイ（画像ボタン＆CSV対応版）</title>
   <style>
-    /* 画面全体のデザイン */
-    body { font-family: sans-serif; background: #fff; color: #fff; padding: 20px; }
+    body { font-family: sans-serif; background: #000; color: #fff; padding: 20px; }
     
-    /* === 1. 配信に映す部分のデザイン === */
-    #overlay-display {
-      border: 2px dashed #555;
-      padding: 20px;
-      min-height: 200px;
-      margin-bottom: 50px;
-    }
-    .display-row {
-      display: flex;
-      align-items: center;
-      margin-bottom: 15px;
-      gap: 15px;
-    }
-    .display-row img {
-      height: 60px; /* 配信画面での画像の高さ */
-      border-radius: 8px;
-    }
-    .display-row span {
-      font-size: 40px;
-      font-weight: bold;
-      color: #222222;
-      text-shadow: 2px 2px 4px #444444;
-    }
+    /* === 配信に映す部分 === */
+    #overlay-display { border: 2px dashed #555; padding: 20px; min-height: 200px; margin-bottom: 50px; }
+    .display-row { display: flex; align-items: center; margin-bottom: 15px; gap: 15px; }
+    .display-row img { height: 60px; border-radius: 8px; }
+    .display-row span { font-size: 40px; font-weight: bold; color: #00ff00; text-shadow: 2px 2px 4px #000; }
 
-    /* === 2. 操作パネルのデザイン === */
-    #control-panel { background: #333; padding: 20px; border-radius: 8px; max-width: 600px; }
-    
-    /* 入力フォーム部分 */
+    /* === 操作パネル === */
+    #control-panel { background: #333; padding: 20px; border-radius: 8px; max-width: 700px; }
     .form-group { background: #444; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-    .form-group input, .form-group select { font-size: 16px; padding: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
-    .form-group button { font-size: 16px; padding: 10px 20px; cursor: pointer; font-weight: bold; }
-    #saveBtn, #cancelBtn { display: none; } /* 初期状態では非表示 */
-
-    /* リスト一覧部分 */
-    .control-row {
-      display: flex;
-      align-items: center;
-      background: #222;
-      padding: 10px;
-      margin-bottom: 5px;
-      border-radius: 4px;
-      gap: 10px;
+    .form-group input { font-size: 16px; padding: 8px; width: 100%; box-sizing: border-box; margin-bottom: 15px; }
+    
+    /* === 画像選択ボタンのデザイン === */
+    #image-selector { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+    .img-btn {
+      background: #555; border: 3px solid transparent; border-radius: 8px; 
+      cursor: pointer; padding: 5px; color: white; 
+      display: flex; align-items: center; justify-content: center; 
+      min-width: 80px; height: 60px; transition: 0.2s;
     }
+    .img-btn img { max-height: 100%; border-radius: 4px; pointer-events: none; }
+    /* 選択されているボタンは枠線を緑にして目立たせる */
+    .img-btn.selected { border-color: #00ff00; background: #222; }
+
+    .form-group button { font-size: 16px; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+    #saveBtn, #cancelBtn { display: none; }
+
+    /* === リスト一覧部分 === */
+    .control-row { display: flex; align-items: center; background: #222; padding: 10px; margin-bottom: 5px; border-radius: 4px; gap: 10px; }
     .control-row img { height: 40px; }
     .control-row .text-info { flex-grow: 1; font-size: 16px; }
     .control-row button { padding: 5px 10px; cursor: pointer; }
@@ -60,8 +44,7 @@
 <body>
 
   <div id="overlay-display">
-    <div id="display-list">
-      </div>
+    <div id="display-list"></div>
   </div>
 
   <div id="control-panel">
@@ -69,19 +52,19 @@
     
     <div class="form-group">
       <label>テキスト:</label>
-      <input type="text" id="inputText" list="text-candidates" placeholder="表示したい文字を入力">
+      <input type="text" id="inputText" list="text-candidates" placeholder="表示したい文字を入力（または選択）">
       <datalist id="text-candidates"></datalist>
       
-      <label>画像:</label>
-      <select id="imageSelect">
-        <option value="">（画像なし）</option>
-        <option value="SSS+.png">SSS+</option>
-        <option value="SSS.png">SSS</option>
-        <option value="SS+.png">SS+</option>
-        <option value="SS.png">SS</option>
-      </select>
+      <label>画像を選択:</label>
+      <div id="image-selector">
+        <button type="button" class="img-btn selected" data-url="">画像なし</button>
+        <button type="button" class="img-btn" data-url="SSS+.png"><img src="SSS+.png" alt="SSS+"></button>
+        <button type="button" class="img-btn" data-url="SSS.png"><img src="SSS.png" alt="SSS"></button>
+        <button type="button" class="img-btn" data-url="SS+.png"><img src="SS+.png" alt="SS+"></button>
+        <button type="button" class="img-btn" data-url="SS+.png"><img src="SS.png" alt="SS"></button>
+      </div>
 
-      <div style="margin-top: 10px;">
+      <div>
         <button id="addBtn" style="background:#28a745; color:white; border:none; border-radius:4px;">＋ 新しく追加</button>
         <button id="saveBtn" style="background:#007bff; color:white; border:none; border-radius:4px;">💾 上書き保存</button>
         <button id="cancelBtn" style="background:#6c757d; color:white; border:none; border-radius:4px;">キャンセル</button>
@@ -89,33 +72,43 @@
     </div>
 
     <h4>現在の表示リスト</h4>
-    <div id="control-list">
-      </div>
+    <div id="control-list"></div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    // 必要な機能（push, remove, update）を追加で読み込みます
     import { getDatabase, ref, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // ▼▼▼ ここから追加：CSVを読み込んで候補リストを作る処理 ▼▼▼
+    // ▼▼▼ ここを自分の設定に書き換える ▼▼▼
+    const firebaseConfig = {
+      apiKey: "AIzaSy...",
+      authDomain: "your-project.firebaseapp.com",
+      databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+      projectId: "your-project",
+      // ...他も忘れずに
+    };
+    // ▲▲▲ ここまで ▲▲▲
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const listRef = ref(db, 'live/items');
+
+    let currentEditId = null; 
+    let currentSelectedImage = ""; // ★現在選択されている画像のURLを記憶する変数
+
+    // ------------------------------------------
+    // 【CSV読み込み機能】
+    // ------------------------------------------
     async function loadCandidatesFromCSV() {
       try {
-        // 同じ場所にある candidates.csv を読み込む
         const response = await fetch('musiclist.csv');
-        if (!response.ok) throw new Error('CSVが見つかりません');
-        
-        // 読み込んだテキストデータを取得
+        if (!response.ok) return; // CSVが無くてもエラーで止めない
         const csvText = await response.text();
         const datalist = document.getElementById('text-candidates');
-        datalist.innerHTML = ''; // 一旦中身をリセット
-
-        // 改行ごとに分割して配列にする（空行は除外）
+        datalist.innerHTML = '';
+        
         const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
-
-        // 1行ずつ処理して <option> タグを作る
         lines.forEach(line => {
-          // カンマ区切りの最初の列をテキストとして使用
           const text = line.split(',')[0].trim();
           if (text) {
             const option = document.createElement('option');
@@ -127,33 +120,27 @@
         console.error("CSV読み込みエラー:", error);
       }
     }
-
-    // ページが開かれた時にCSV読み込みを実行
     loadCandidatesFromCSV();
-    // ▲▲▲ ここまで追加 ▲▲▲
-    
-    // ▼▼▼ ここを自分の設定に書き換える ▼▼▼
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-    const firebaseConfig = {
-      apiKey: "AIzaSyCm7JSHoVaJQRz4UaDTFeRoeVlAkOYpql0",
-      authDomain: "tasklist-live.firebaseapp.com",
-      databaseURL: "https://tasklist-live-default-rtdb.firebaseio.com",
-      projectId: "tasklist-live",
-      storageBucket: "tasklist-live.firebasestorage.app",
-      messagingSenderId: "687728987860",
-      appId: "1:687728987860:web:8b19ac1aea6c7f2d3bb541",
-      measurementId: "G-53D8MHL743"
-    };
-    // ▲▲▲ ここまで ▲▲▲
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const listRef = ref(db, 'live/items'); // 保存場所を「リスト用」に変更
-
-    let currentEditId = null; // 現在編集中のアイテムのIDを記憶する変数
 
     // ------------------------------------------
-    // 【受信・表示】データベースが更新されたら画面を描き直す
+    // ★【画像ボタン選択機能】
+    // ------------------------------------------
+    document.querySelectorAll('.img-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        // 全てのボタンから緑枠(selected)を外す
+        document.querySelectorAll('.img-btn').forEach(b => b.classList.remove('selected'));
+        
+        // クリックされたボタンに緑枠をつける
+        const clickedBtn = e.currentTarget;
+        clickedBtn.classList.add('selected');
+        
+        // 選択された画像のURLを変数に保存する
+        currentSelectedImage = clickedBtn.getAttribute('data-url');
+      });
+    });
+
+    // ------------------------------------------
+    // 【受信・表示】画面を描き直す
     // ------------------------------------------
     onValue(listRef, (snapshot) => {
       const data = snapshot.val();
@@ -163,13 +150,12 @@
       displayList.innerHTML = '';
       controlList.innerHTML = '';
 
-      if (!data) return; // データが空なら何もしない
+      if (!data) return;
 
-      // データを1件ずつ処理
       Object.keys(data).forEach(key => {
         const item = data[key];
 
-        // --- 1. 配信画面用のHTMLを作成 ---
+        // 配信画面用（テキスト → 画像の順）
         const dispDiv = document.createElement('div');
         dispDiv.className = 'display-row';
         dispDiv.innerHTML = `
@@ -178,7 +164,7 @@
         `;
         displayList.appendChild(dispDiv);
 
-        // --- 2. 操作パネル用のHTMLを作成 ---
+        // 操作パネル用
         const ctrlDiv = document.createElement('div');
         ctrlDiv.className = 'control-row';
         ctrlDiv.innerHTML = `
@@ -195,52 +181,66 @@
     // 【操作機能】追加・削除・編集
     // ------------------------------------------
     
-    // 【追加】新しくデータを入れる (push)
+    // 【追加】
     document.getElementById('addBtn').addEventListener('click', () => {
       const textVal = document.getElementById('inputText').value;
-      const imgVal = document.getElementById('imageSelect').value;
-      if (!textVal && !imgVal) return; // 空っぽなら追加しない
+      if (!textVal && !currentSelectedImage) return;
 
-      push(listRef, { text: textVal, imageUrl: imgVal });
+      // 変数 currentSelectedImage に入っているURLを送信する
+      push(listRef, { text: textVal, imageUrl: currentSelectedImage });
       clearForm();
     });
 
-    // 【削除】データを消す (remove) ※HTML内のonclickから呼ばれる
+    // 【削除】
     window.deleteItem = (id) => {
       if(confirm('この行を削除しますか？')) {
         remove(ref(db, `live/items/${id}`));
       }
     };
 
-    // 【編集準備】フォームに現在のデータを入れてモードを切り替える
+    // 【編集準備】★画像ボタンの選択状態も復元する
     window.startEdit = (id, currentText, currentImage) => {
       currentEditId = id;
       document.getElementById('inputText').value = currentText;
-      document.getElementById('imageSelect').value = currentImage;
       
-      // ボタンの表示を「追加」から「保存」に切り替え
+      currentSelectedImage = currentImage || "";
+      
+      // 一旦すべてのボタンの選択を解除
+      document.querySelectorAll('.img-btn').forEach(b => b.classList.remove('selected'));
+      
+      // データと同じURLを持つボタンがあれば選択状態にする、無ければ「画像なし」を選択
+      const targetBtn = document.querySelector(`.img-btn[data-url="${currentSelectedImage}"]`);
+      if (targetBtn) {
+        targetBtn.classList.add('selected');
+      } else {
+        document.querySelector('.img-btn[data-url=""]').classList.add('selected');
+      }
+
       document.getElementById('addBtn').style.display = 'none';
       document.getElementById('saveBtn').style.display = 'inline-block';
       document.getElementById('cancelBtn').style.display = 'inline-block';
     };
 
-    // 【編集保存】変更したデータを上書きする (update)
+    // 【編集保存】
     document.getElementById('saveBtn').addEventListener('click', () => {
       const textVal = document.getElementById('inputText').value;
-      const imgVal = document.getElementById('imageSelect').value;
-
-      update(ref(db, `live/items/${currentEditId}`), { text: textVal, imageUrl: imgVal });
+      update(ref(db, `live/items/${currentEditId}`), { text: textVal, imageUrl: currentSelectedImage });
       clearForm();
     });
 
-    // 【キャンセル】編集をやめる
+    // 【キャンセル】
     document.getElementById('cancelBtn').addEventListener('click', clearForm);
 
-    // フォームをリセットして初期状態に戻す関数
+    // ★フォームと画像選択状態をリセットする関数
     function clearForm() {
       currentEditId = null;
       document.getElementById('inputText').value = '';
-      document.getElementById('imageSelect').value = '';
+      
+      // 画像選択を「画像なし」に戻す
+      currentSelectedImage = "";
+      document.querySelectorAll('.img-btn').forEach(b => b.classList.remove('selected'));
+      document.querySelector('.img-btn[data-url=""]').classList.add('selected');
+
       document.getElementById('addBtn').style.display = 'inline-block';
       document.getElementById('saveBtn').style.display = 'none';
       document.getElementById('cancelBtn').style.display = 'none';
