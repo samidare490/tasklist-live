@@ -69,7 +69,8 @@
     
     <div class="form-group">
       <label>テキスト:</label>
-      <input type="text" id="inputText" placeholder="表示したい文字を入力">
+      <input type="text" id="inputText" list="text-candidates" placeholder="表示したい文字を入力">
+      <datalist id="text-candidates"></datalist>
       
       <label>画像:</label>
       <select id="imageSelect">
@@ -97,6 +98,40 @@
     // 必要な機能（push, remove, update）を追加で読み込みます
     import { getDatabase, ref, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+    // ▼▼▼ ここから追加：CSVを読み込んで候補リストを作る処理 ▼▼▼
+    async function loadCandidatesFromCSV() {
+      try {
+        // 同じ場所にある candidates.csv を読み込む
+        const response = await fetch('musiclist.csv');
+        if (!response.ok) throw new Error('CSVが見つかりません');
+        
+        // 読み込んだテキストデータを取得
+        const csvText = await response.text();
+        const datalist = document.getElementById('text-candidates');
+        datalist.innerHTML = ''; // 一旦中身をリセット
+
+        // 改行ごとに分割して配列にする（空行は除外）
+        const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
+
+        // 1行ずつ処理して <option> タグを作る
+        lines.forEach(line => {
+          // カンマ区切りの最初の列をテキストとして使用
+          const text = line.split(',')[0].trim();
+          if (text) {
+            const option = document.createElement('option');
+            option.value = text;
+            datalist.appendChild(option);
+          }
+        });
+      } catch (error) {
+        console.error("CSV読み込みエラー:", error);
+      }
+    }
+
+    // ページが開かれた時にCSV読み込みを実行
+    loadCandidatesFromCSV();
+    // ▲▲▲ ここまで追加 ▲▲▲
+    
     // ▼▼▼ ここを自分の設定に書き換える ▼▼▼
     // For Firebase JS SDK v7.20.0 and later, measurementId is optional
     const firebaseConfig = {
